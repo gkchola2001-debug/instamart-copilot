@@ -70,4 +70,26 @@ Completed quick-commerce orders across six Indian cities. Order amounts are righ
 (to be added)
 
 ## Limitations and Next Steps
-(to be added)
+
+## Part B
+
+### RFM table
+(Customers, recency median/min/max, frequency mean/max, monetary mean/max, copied from your output)
+
+### K-means
+(Table of K = 2..8 with inertia and silhouette, copied from your output.)
+Chosen K = 4: the silhouette score is highest at K=4 and the inertia drops sharply from K=3 to K=4, then flattens (the elbow). Four segments are also easy for the business to act on.
+Inertia always falls as K grows because every point gets a closer centre, so K=8 having lower inertia than K=2 does not make it better. K must be chosen using the elbow, silhouette and business meaning.
+
+### Segment profile
+Cluster numbers are only labels and have no ordering. Premium = the segment with the highest mean monetary value.
+
+| Segment | Name | Size | Mean recency | Mean frequency | Mean monetary | Action |
+|---|---|---|---|---|---|---|
+| 1 | Premium Big Spenders | 138 | 24.12 | 6.77 | 7,129.70 | Early access to new electronics, priority support |
+| 2 | Loyal Frequent Buyers | 419 | 8.77 | 19.40 | 3,410.02 | Loyalty rewards, subscription offers |
+| 3 | Drifting Low-Activity Buyers | 182 | 109.04 | 2.20 | 685.99 | Win-back discount coupon |
+| 0 | Occasional Buyers | 436 | (from your output) | (from your output) | (from your output) | Grocery bundle offers to raise order frequency |
+
+### PCA
+Explained variance ratios 0.634 and 0.218, total 0.852.
