@@ -1,0 +1,114 @@
+Tickets: 164
+
+Redaction substitutions: {'EMAIL': 55, 'PHONE': 91, 'ORDER_ID': 132} total 278
+Left after re-applying the patterns: 0
+
+Empty tickets: 4 | long tickets: 4
+RETRY ticket=T0002 retry=0 wait=0.0530s
+RETRY ticket=T0116 retry=0 wait=0.0453s
+RETRY ticket=T0153 retry=0 wait=0.0484s
+RETRY ticket=T0039 retry=0 wait=0.0478s
+RETRY ticket=T0152 retry=0 wait=0.0542s
+RETRY ticket=T0043 retry=0 wait=0.0535s
+RETRY ticket=T0111 retry=0 wait=0.0562s
+RETRY ticket=T0155 retry=0 wait=0.0461s
+RETRY ticket=T0100 retry=0 wait=0.0503s
+RETRY ticket=T0068 retry=0 wait=0.0454s
+RETRY ticket=T0135 retry=0 wait=0.0477s
+RETRY ticket=T0009 retry=0 wait=0.0513s
+RETRY ticket=T0067 retry=0 wait=0.0453s
+RETRY ticket=T0106 retry=0 wait=0.0475s
+RETRY ticket=T0097 retry=0 wait=0.0531s
+RETRY ticket=T0003 retry=0 wait=0.0518s
+RETRY ticket=T0019 retry=0 wait=0.0478s
+RETRY ticket=T0086 retry=0 wait=0.0524s
+RETRY ticket=T0065 retry=0 wait=0.0551s
+
+===== ZERO-SHOT (no budget) =====
+status
+classified_json           135
+classified_keyword         12
+flagged_invalid_output      9
+skipped_empty               4
+flagged_long                4
+classified: 147 | accuracy: 85.7% (126 of 147)
+total tokens: 10180 | tokens per classified ticket: 69.3 | TransientLLMErrors: 19
+
+Zero-shot confusion table (rows = true, columns = predicted):
+category       billing  delivery  fraud  technical
+true_category                                     
+billing             38         0      0          0
+delivery             0        36      0          0
+fraud               11         0     23          0
+technical           10         0      0         29
+RETRY ticket=T0002 retry=0 wait=0.0451s
+RETRY ticket=T0116 retry=0 wait=0.0551s
+RETRY ticket=T0153 retry=0 wait=0.0537s
+RETRY ticket=T0039 retry=0 wait=0.0493s
+RETRY ticket=T0152 retry=0 wait=0.0469s
+RETRY ticket=T0043 retry=0 wait=0.0570s
+RETRY ticket=T0111 retry=0 wait=0.0492s
+RETRY ticket=T0155 retry=0 wait=0.0462s
+RETRY ticket=T0100 retry=0 wait=0.0462s
+RETRY ticket=T0068 retry=0 wait=0.0556s
+RETRY ticket=T0135 retry=0 wait=0.0525s
+RETRY ticket=T0009 retry=0 wait=0.0551s
+RETRY ticket=T0067 retry=0 wait=0.0541s
+RETRY ticket=T0106 retry=0 wait=0.0517s
+RETRY ticket=T0097 retry=0 wait=0.0572s
+RETRY ticket=T0003 retry=0 wait=0.0497s
+RETRY ticket=T0019 retry=0 wait=0.0519s
+RETRY ticket=T0086 retry=0 wait=0.0554s
+RETRY ticket=T0065 retry=0 wait=0.0527s
+
+===== FEW-SHOT (no budget) =====
+status
+classified_json           135
+classified_keyword         12
+flagged_invalid_output      9
+skipped_empty               4
+flagged_long                4
+classified: 147 | accuracy: 100.0% (147 of 147)
+total tokens: 25000 | tokens per classified ticket: 170.1 | TransientLLMErrors: 19
+RETRY ticket=T0002 retry=0 wait=0.0558s
+RETRY ticket=T0116 retry=0 wait=0.0522s
+RETRY ticket=T0153 retry=0 wait=0.0538s
+RETRY ticket=T0039 retry=0 wait=0.0456s
+RETRY ticket=T0152 retry=0 wait=0.0478s
+RETRY ticket=T0043 retry=0 wait=0.0486s
+RETRY ticket=T0111 retry=0 wait=0.0460s
+RETRY ticket=T0155 retry=0 wait=0.0479s
+RETRY ticket=T0100 retry=0 wait=0.0463s
+RETRY ticket=T0068 retry=0 wait=0.0485s
+RETRY ticket=T0135 retry=0 wait=0.0529s
+
+BUDGET DEMO: TOKEN_BUDGET=6000, budget_exhausted tickets = 64
+RETRY ticket=T0002 retry=0 wait=0.0496s
+RETRY ticket=T0116 retry=0 wait=0.0496s
+RETRY ticket=T0153 retry=0 wait=0.0476s
+RETRY ticket=T0039 retry=0 wait=0.0483s
+RETRY ticket=T0152 retry=0 wait=0.0567s
+RETRY ticket=T0043 retry=0 wait=0.0531s
+RETRY ticket=T0111 retry=0 wait=0.0526s
+RETRY ticket=T0155 retry=0 wait=0.0471s
+RETRY ticket=T0100 retry=0 wait=0.0541s
+RETRY ticket=T0068 retry=0 wait=0.0470s
+RETRY ticket=T0135 retry=0 wait=0.0497s
+RETRY ticket=T0009 retry=0 wait=0.0574s
+RETRY ticket=T0067 retry=0 wait=0.0530s
+RETRY ticket=T0106 retry=0 wait=0.0520s
+RETRY ticket=T0097 retry=0 wait=0.0536s
+RETRY ticket=T0003 retry=0 wait=0.0555s
+RETRY ticket=T0019 retry=0 wait=0.0547s
+RETRY ticket=T0086 retry=0 wait=0.0479s
+RETRY ticket=T0065 retry=0 wait=0.0454s
+
+FINAL few-shot run saved: 164 rows
+route
+support_queue    102
+security_team     34
+human_review      17
+premium_desk      11
+priority
+NORMAL    119
+HIGH       45

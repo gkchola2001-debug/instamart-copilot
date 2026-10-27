@@ -11,6 +11,9 @@ This project builds a Customer Intelligence and Support Copilot for a quick-comm
 5. `python src/part_a_clean.py`
 6. `python src/validate.py`
 7. `python src/part_a_analysis.py`
+8. `python src/part_b_segments.py`
+9. `python src/part_b_lapse.py`
+10. `python src/part_c_triage.py`
 
 ## Part A
 
@@ -108,8 +111,72 @@ Top 5 random-forest features (importance):
 The selected model was saved with joblib to outputs/lapse_model.joblib, reloaded, and reproduced the test predictions exactly (True). The retention list (outputs/retention_list.csv) has 10 Premium test customers ranked by predicted lapse probability, and 1 of them truly lapsed. The retention list is illustrative and not a leakage-free evaluation, because the Premium flag comes from whole-window RFM, which includes the September window that defines the lapse label.
 
 ## Part C
-(to be added)
+### Guardrails and redaction
+- Empty tickets (4) get status skipped_empty and long tickets (4, about 734 estimated tokens against MAX_INPUT_TOKENS = 400) get flagged_long. Neither is ever sent to the model.
+- Redaction was applied in the order email, phone, order id before any prompt was built.
 
+| Type | Substitutions |
+|---|---|
+| Email | 55 |
+| Phone | 91 |
+| Order id | 132 |
+| Total | 278 |
+
+Re-applying the three patterns to the redacted texts found 0 matches, and an assertion in the code checks every prompt before each model call.
+
+### Prompts
+A zero-shot prompt (no EXAMPLES: line) and a few-shot prompt (EXAMPLES: followed by four labelled examples, including a fraud example). Both contain the word CLASSIFY, list the four categories and require a JSON-only reply.
+
+### Retries
+Every model call is wrapped in a retry function: at most 3 retries, wait = 0.05 x 2^n x random.uniform(0.9, 1.15) seconds, one log line per retry. A full run over the 156 eligible tickets had 19 TransientLLMErrors, all recovered by a single retry, so no ticket ended with a permanent error. Example log lines (every wait lies between 0.045 and 0.0575 seconds):
+- RETRY ticket=T0002 retry=0 wait=0.0530s
+- RETRY ticket=T0116 retry=0 wait=0.0453s
+- RETRY ticket=T0153 retry=0 wait=0.0484s
+
+### Output validation
+A reply is parsed as JSON and accepted if the category is one of the four allowed values (classified_json). If it is not JSON, lowercase words are extracted with re.findall and the reply is accepted only if exactly one allowed category word is present (classified_keyword). Anything else, including valid JSON with a category outside the list, is flagged_invalid_output and sent to human review. Nothing is guessed.
+
+| Status | Tickets |
+|---|---|
+| classified_json | 135 |
+| classified_keyword | 12 |
+| flagged_invalid_output | 9 |
+| skipped_empty | 4 |
+| flagged_long | 4 |
+
+Rule-validated and routed automatically: 147 tickets. Sent to human review: 17 (9 invalid outputs, 4 empty, 4 too long).
+
+### Zero-shot versus few-shot
+| Run | Tickets classified | Accuracy | Total tokens | Tokens per classified ticket |
+|---|---|---|---|---|
+| Zero-shot | 147 | 85.7% (126 of 147) | 10,180 | 69.3 |
+| Few-shot | 147 | 100% (147 of 147) | 25,000 | 170.1 |
+
+Zero-shot confusion table (rows = true, columns = predicted):
+
+| True \ Predicted | billing | delivery | fraud | technical |
+|---|---|---|---|---|
+| billing | 38 | 0 | 0 | 0 |
+| delivery | 0 | 36 | 0 | 0 |
+| fraud | 11 | 0 | 23 | 0 |
+| technical | 10 | 0 | 0 | 29 |
+
+Every zero-shot error is a fraud ticket predicted as billing (11) or a technical ticket predicted as billing (10). The few-shot prompt costs about 100 more tokens per ticket (170.1 versus 69.3, roughly 2.5 times as many in total) but removed all 21 errors. The extra tokens are worth paying when a wrong label is costly, such as a fraud ticket landing in the billing queue instead of the security team within 2 hours. For low-risk tickets, where an 85% accurate and much cheaper zero-shot prompt is acceptable, they are not.
+
+### Token budget demo
+With the zero-shot prompt and TOKEN_BUDGET = 6000, 64 tickets ended with status budget_exhausted (routed to human review). The result is saved in outputs/triage_budget_demo.csv.
+
+### Routing
+The final outputs/triage_results.csv (164 rows) comes from a few-shot run with TOKEN_BUDGET = 100000. Rules: skipped_empty, flagged_long, flagged_invalid_output or budget_exhausted go to human_review with priority NORMAL; fraud goes to security_team with priority HIGH; Premium customers (from the Part B segment file) go to premium_desk with priority HIGH; everyone else goes to support_queue with priority NORMAL. A customer with no row in the segment file is treated as not Premium.
+
+| Route | Tickets |
+|---|---|
+| support_queue | 102 |
+| security_team | 34 |
+| human_review | 17 |
+| premium_desk | 11 |
+
+Priority: 119 NORMAL and 45 HIGH.
 ## Part D
 (to be added)
 
