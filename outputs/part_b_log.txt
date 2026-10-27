@@ -1,0 +1,40 @@
+No missing values in any feature column: OK
+Cohort: 1156 | lapsed: 443 (38.32%)
+Train: 924 Test: 232
+
+Baseline accuracy 61.6%  lapsed F1 0.00
+
+LogReg best: {'clf__C': 100} CV F1 0.651
+RandForest best: {'clf__max_depth': 8, 'clf__min_samples_leaf': 10} CV F1 0.681
+
+Scaler mean of frequency (train only): 8.115 | full-cohort mean: 8.029
+
+LogReg test: precision 0.644 recall 0.652 F1 0.648
+  confusion matrix [[TN FP],[FN TP]]: [[111, 32], [31, 58]]
+RandForest test: precision 0.659 recall 0.652 F1 0.655
+  confusion matrix [[TN FP],[FN TP]]: [[113, 30], [31, 58]]
+Selected model: RandomForest
+
+Balanced train counts: {1: 570, 0: 570}
+LogReg unbalanced: precision 0.644 recall 0.652 F1 0.648
+  confusion matrix [[TN FP],[FN TP]]: [[111, 32], [31, 58]]
+LogReg balanced  : precision 0.589 recall 0.854 F1 0.697
+  confusion matrix [[TN FP],[FN TP]]: [[90, 53], [13, 76]]
+
+Top 5 random-forest features:
+ num__frequency       0.280
+num__monetary        0.271
+num__recency         0.115
+num__avg_delivery    0.061
+num__cancel_rate     0.052
+dtype: float64
+
+LogReg coefficients:
+ num__recency         0.040
+num__frequency      -1.698
+num__avg_discount    0.004
+dtype: float64
+
+Reloaded model reproduces test predictions exactly: True
+
+Retention list rows: 10 | truly lapsed: 1

@@ -61,7 +61,51 @@ Completed quick-commerce orders across six Indian cities. Order amounts are righ
 - Largest correlation: order_amount vs discount_pct = -0.095
 
 ## Part B
-(to be added)
+### Lapse problem
+Cutoff 2025-09-01. The cohort is every customer with a completed order before the cutoff: 1,156 customers, of whom 443 lapsed (38.32%). The split is 924 training and 232 test rows (test_size=0.2, stratified, random_state=42). Always predicting "not lapsed" gives accuracy 61.6% and lapsed-class F1 0.00.
+
+### Preprocessing (no leakage)
+- No encoder, scaler or resampler saw test rows. No data from 2025-09-01 onwards entered the features. The segment labels from the K-means step were not used as features.
+- No feature column contains a missing value (checked in code).
+- Scaler mean of frequency (training rows only): 8.115 versus full-cohort mean: 8.029. They differ because the scaler learned its mean from the 924 training rows only, while the cohort mean also includes the 232 test rows.
+### Models and tuning
+| Model | Best parameters | Best CV F1 | Test precision | Test recall | Test F1 |
+|---|---|---|---|---|---|
+| Logistic regression | C=100 | 0.651 | 0.644 | 0.652 | 0.648 |
+| Random forest | max_depth=8, min_samples_leaf=10 | 0.681 | 0.659 | 0.652 | 0.655 |
+
+Confusion matrices on the test set ([[TN, FP], [FN, TP]]): logistic regression [[111, 32], [31, 58]], random forest [[113, 30], [31, 58]].
+
+Model choice: I chose the random forest, which has the slightly higher lapsed-class F1 (0.655, above the required 0.55). Missing a customer who is about to lapse loses their future revenue, while wrongly targeting a loyal customer costs only a small offer, so missing a lapser is the costlier mistake and recall matters at least as much as precision. Both models have the same recall (0.652), and the forest has the better precision.
+
+### Class-balance experiment
+The lapsed training rows were over-sampled with replacement until both classes had 570 rows (training set only), and the best logistic regression was refit.
+
+| Model | Precision | Recall | F1 |
+|---|---|---|---|
+| Unbalanced | 0.644 | 0.652 | 0.648 |
+| Balanced | 0.589 | 0.854 | 0.697 |
+
+Recall moved the most (0.652 to 0.854), while precision did not rise (0.644 to 0.589). The retention team would catch many more real lapsers but also contact more loyal customers by mistake, so this helps when campaigns are cheap.
+
+### Interpretation
+Top 5 random-forest features (importance):
+- frequency 0.280: customers who order more often behave very differently from occasional buyers, so it is the strongest signal of lapsing.
+- monetary 0.271: total spend before September is almost as informative as order count.
+- recency 0.115: how recently the customer last ordered carries a smaller but real signal.
+- avg_delivery 0.061: slower average deliveries contribute a little to lapsing.
+- cancel_rate 0.052: customers who cancel more often contribute a little to lapsing.
+
+| Feature | Coefficient | Sign | Business reading |
+|---|---|---|---|
+| recency | 0.040 | + | The longer since the last order, the slightly more likely the customer lapses (a small effect). |
+| frequency | -1.698 | - | Customers who order often are much less likely to lapse; this is the strongest effect. |
+| avg_discount | 0.004 | + | Almost no effect, because the coefficient is close to zero. |
+
+(Business reading examples: a positive recency coefficient means the longer since the last order, the more likely the customer lapses; a negative frequency coefficient means frequent buyers are less likely to lapse.)
+
+### Saved model and retention list
+The selected model was saved with joblib to outputs/lapse_model.joblib, reloaded, and reproduced the test predictions exactly (True). The retention list (outputs/retention_list.csv) has 10 Premium test customers ranked by predicted lapse probability, and 1 of them truly lapsed. The retention list is illustrative and not a leakage-free evaluation, because the Premium flag comes from whole-window RFM, which includes the September window that defines the lapse label.
 
 ## Part C
 (to be added)
