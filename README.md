@@ -14,6 +14,7 @@ This project builds a Customer Intelligence and Support Copilot for a quick-comm
 8. `python src/part_b_segments.py`
 9. `python src/part_b_lapse.py`
 10. `python src/part_c_triage.py`
+11. `python src/part_d_rag_eval.py`
 
 ## Part A
 
@@ -178,8 +179,24 @@ The final outputs/triage_results.csv (164 rows) comes from a few-shot run with T
 
 Priority: 119 NORMAL and 45 HIGH.
 ## Part D
-(to be added)
+### Chunking
+Each of the five policy files was split into chunks of 40 words with an overlap of 10 words, and the source file name is stored with every chunk. Total: [15] chunks (refund [4], delivery [3], escalation [3], payment [3], privacy [2]).
 
+### Retrieval (TF-IDF)
+Chunks are vectorised with TfidfVectorizer fitted on the chunk texts, the query is transformed with the same vectorizer, and chunks are ranked by cosine similarity (retrieve(query, k=3) returns source, score and text). For the query "refund policy late delivery" the top three chunks all come from refund_policy.txt.
+
+TF (term frequency) measures how often a word appears in a chunk, and IDF (inverse document frequency) measures how rare the word is across all chunks, so rare words count more than common ones. A limitation is that TF-IDF only matches words, not meaning: two phrasings of the same question with different words (for example "money back" versus "refund") can retrieve the wrong chunk.
+
+### Augmented answer
+answer(question) retrieves three chunks and sends two messages to mock_llm.chat: a system message containing POLICY ASSISTANT that tells the model to answer only from the context and to say it could not find the information otherwise, and a user message of the form CONTEXT: (three chunks, each prefixed by [file name]) QUESTION: (the question). It returns the answer text and the sources used.
+
+### Evaluation (14 questions)
+| Setting | Expected doc in top 3 (12 answerable) | Answer contains expected fact (12 answerable) | Fallback "I could not find" (2 unanswerable) |
+|---|---|---|---|
+| Overlap 10 | [12/12] | [12/12] | [2/2] |
+| Overlap 0 | [from output] | [from output] | [from output] |
+
+With zero overlap, the question "[copy a FAILED question from the output]" fails. [Explain in your own words: the answer sentence was split across a chunk boundary, so neither chunk contains the full fact.] The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk.
 ## Limitations and Next Steps
 
 ## Part B
