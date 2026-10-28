@@ -65,6 +65,48 @@ Completed quick-commerce orders across six Indian cities. Order amounts are righ
 - Largest correlation: order_amount vs discount_pct = -0.095
 
 ## Part B
+### RFM table
+Snapshot moment 2025-10-01 00:00:00; only completed orders count. Recency is the whole days since the last completed order, frequency the number of distinct completed orders, and monetary the sum of completed order_amount (INR).
+
+| Measure | Value |
+|---|---|
+| Customers with at least one completed order | 1,175 |
+| Recency (median / min / max) | 19 / 0 / 180 days |
+| Frequency (mean / max) | 9.46 / 33 |
+| Monetary (mean / max) | INR 2,552.06 / INR 14,766.55 |
+
+### K-means
+The three RFM columns were standardised with StandardScaler, and KMeans(n_clusters=K, n_init=10, random_state=42) was fitted for K = 2 to 8.
+
+| K | Inertia | Silhouette |
+|---|---|---|
+| 2 | 1820.8 | 0.465 |
+| 3 | 1268.2 | 0.445 |
+| 4 | 743.1 | 0.526 |
+| 5 | 617.4 | 0.480 |
+| 6 | 503.2 | 0.482 |
+| 7 | 408.5 | 0.416 |
+| 8 | 366.5 | 0.412 |
+
+Chosen K = 4. The inertia drops sharply from K=3 to K=4 (1268 to 743) and then flattens (617 at K=5), so the elbow is at 4, and K=4 also has the highest silhouette score (0.526). Four segments are also few enough for the business to give each one its own campaign.
+
+Inertia is the sum of squared distances from points to their cluster centre, so adding clusters always lowers it: K=8 has lower inertia than K=2 only because every point gets a closer centre (with one cluster per customer it would be zero). That fact alone cannot pick K, so the choice also uses the elbow, the silhouette scores and business interpretability.
+
+### Segment profile
+Cluster numbers are only labels and have no ordering. The Premium segment is the one with the highest mean monetary value.
+
+| Segment | Name | Size | Mean recency (days) | Mean frequency | Mean monetary (INR) | Recommended action |
+|---|---|---|---|---|---|---|
+| 1 | Premium Big Spenders (Premium) | 138 | 24.12 | 6.77 | 7,129.70 | Early access to new electronics and priority support |
+| 2 | Loyal Frequent Buyers | 419 | 8.77 | 19.40 | 3,410.02 | Loyalty rewards and subscription offers |
+| 3 | Drifting Low-Activity Buyers | 182 | 109.04 | 2.20 | 685.99 | Win-back discount coupon |
+| 0 | Occasional Buyers | 436 | 28.86 | 3.77 | 1,057.62 | Grocery bundle offers to raise order frequency |
+
+The result is saved in outputs/customer_segments.csv (customer_id, recency, frequency, monetary, segment_id, segment_name, is_premium).
+
+### PCA
+PCA(n_components=2) on the scaled RFM matrix gives explained variance ratios of 0.634 and 0.218, a total of 0.852.
+
 ### Lapse problem
 Cutoff 2025-09-01. The cohort is every customer with a completed order before the cutoff: 1,156 customers, of whom 443 lapsed (38.32%). The split is 924 training and 232 test rows (test_size=0.2, stratified, random_state=42). Always predicting "not lapsed" gives accuracy 61.6% and lapsed-class F1 0.00.
 
@@ -194,30 +236,7 @@ answer(question) retrieves three chunks and sends two messages to mock_llm.chat:
 | Setting | Expected doc in top 3 (12 answerable) | Answer contains expected fact (12 answerable) | Fallback "I could not find" (2 unanswerable) |
 |---|---|---|---|
 | Overlap 10 | [12/12] | [12/12] | [2/2] |
-| Overlap 0 | [from output] | [from output] | [from output] |
+| Overlap 0 | 12/12 | 10/12 | 2/2 |
 
-With zero overlap, the question "[copy a FAILED question from the output]" fails. [Explain in your own words: the answer sentence was split across a chunk boundary, so neither chunk contains the full fact.] The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk.
-## Limitations and Next Steps
+With zero overlap, two answerable questions fail. "What delivery time makes a completed order eligible for a full refund?" fails because the sentence is cut at a chunk boundary, so the retrieved chunk only holds the second half ("receives a full refund of the order amount") and not the expected fact "more than 45 minutes". "How soon is money returned when a payment fails but is deducted?" fails the same way: the chunk ends at "returned automatically" and "within 48 hours" falls into the next chunk. The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk, and with overlap 10 all 12 answers contain their facts.## Limitations and Next Steps
 
-## Part B
-
-### RFM table
-(Customers, recency median/min/max, frequency mean/max, monetary mean/max, copied from your output)
-
-### K-means
-(Table of K = 2..8 with inertia and silhouette, copied from your output.)
-Chosen K = 4: the silhouette score is highest at K=4 and the inertia drops sharply from K=3 to K=4, then flattens (the elbow). Four segments are also easy for the business to act on.
-Inertia always falls as K grows because every point gets a closer centre, so K=8 having lower inertia than K=2 does not make it better. K must be chosen using the elbow, silhouette and business meaning.
-
-### Segment profile
-Cluster numbers are only labels and have no ordering. Premium = the segment with the highest mean monetary value.
-
-| Segment | Name | Size | Mean recency | Mean frequency | Mean monetary | Action |
-|---|---|---|---|---|---|---|
-| 1 | Premium Big Spenders | 138 | 24.12 | 6.77 | 7,129.70 | Early access to new electronics, priority support |
-| 2 | Loyal Frequent Buyers | 419 | 8.77 | 19.40 | 3,410.02 | Loyalty rewards, subscription offers |
-| 3 | Drifting Low-Activity Buyers | 182 | 109.04 | 2.20 | 685.99 | Win-back discount coupon |
-| 0 | Occasional Buyers | 436 | (from your output) | (from your output) | (from your output) | Grocery bundle offers to raise order frequency |
-
-### PCA
-Explained variance ratios 0.634 and 0.218, total 0.852.
