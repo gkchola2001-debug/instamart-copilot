@@ -1,9 +1,11 @@
 # Instamart Customer Intelligence & Support Copilot
 
 ## Overview
+
 This project builds a Customer Intelligence and Support Copilot for a quick-commerce company in four parts: (A) cleaning raw order data and storing it in SQLite, (B) customer segmentation and lapse prediction, (C) support ticket triage with privacy guardrails, and (D) a policy question-answering assistant and a refund agent. All data is synthetic and all money is in INR.
 
 ## Reproduce
+
 1. `python -m venv .venv`
 2. `source .venv/bin/activate`
 3. `pip install -r requirements.txt`
@@ -65,6 +67,7 @@ Completed quick-commerce orders across six Indian cities. Order amounts are righ
 - Largest correlation: order_amount vs discount_pct = -0.095
 
 ## Part B
+
 ### RFM table
 Snapshot moment 2025-10-01 00:00:00; only completed orders count. Recency is the whole days since the last completed order, frequency the number of distinct completed orders, and monetary the sum of completed order_amount (INR).
 
@@ -154,6 +157,7 @@ Top 5 random-forest features (importance):
 The selected model was saved with joblib to outputs/lapse_model.joblib, reloaded, and reproduced the test predictions exactly (True). The retention list (outputs/retention_list.csv) has 10 Premium test customers ranked by predicted lapse probability, and 1 of them truly lapsed. The retention list is illustrative and not a leakage-free evaluation, because the Premium flag comes from whole-window RFM, which includes the September window that defines the lapse label.
 
 ## Part C
+
 ### Guardrails and redaction
 - Empty tickets (4) get status skipped_empty and long tickets (4, about 734 estimated tokens against MAX_INPUT_TOKENS = 400) get flagged_long. Neither is ever sent to the model.
 - Redaction was applied in the order email, phone, order id before any prompt was built.
@@ -220,7 +224,9 @@ The final outputs/triage_results.csv (164 rows) comes from a few-shot run with T
 | premium_desk | 11 |
 
 Priority: 119 NORMAL and 45 HIGH.
+
 ## Part D
+
 ### Chunking
 Each of the five policy files was split into chunks of 40 words with an overlap of 10 words, and the source file name is stored with every chunk. Total: [15] chunks (refund [4], delivery [3], escalation [3], payment [3], privacy [2]).
 
@@ -240,3 +246,11 @@ answer(question) retrieves three chunks and sends two messages to mock_llm.chat:
 
 With zero overlap, two answerable questions fail. "What delivery time makes a completed order eligible for a full refund?" fails because the sentence is cut at a chunk boundary, so the retrieved chunk only holds the second half ("receives a full refund of the order amount") and not the expected fact "more than 45 minutes". "How soon is money returned when a payment fails but is deducted?" fails the same way: the chunk ends at "returned automatically" and "within 48 hours" falls into the next chunk. The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk, and with overlap 10 all 12 answers contain their facts.## Limitations and Next Steps
 
+## Limitations and Next Steps
+
+- All data is synthetic, and the mock language model is keyword-based, so a real model would behave differently.
+- The Premium flag is a post-hoc whole-window label, so the retention list is illustrative and not a leakage-free evaluation.
+- The lapse model uses a single train/test split, and K = 4 was chosen using the elbow, silhouette and business meaning rather than a formal test.
+- TF-IDF retrieval matches words, not meaning, so synonyms can retrieve the wrong chunk. Next step: embedding-based retrieval.
+- The refund agent assumes every request is inside the 7-day window and the refund rules are simplified.
+- Next steps: replace the mock model with a real one, monitor the retry and budget logs, and re-run the lapse model on newer data.
