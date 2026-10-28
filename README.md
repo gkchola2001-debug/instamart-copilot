@@ -17,6 +17,7 @@ This project builds a Customer Intelligence and Support Copilot for a quick-comm
 9. `python src/part_b_lapse.py`
 10. `python src/part_c_triage.py`
 11. `python src/part_d_rag_eval.py`
+12. `python src/part_d_agent.py`
 
 ## Part A
 
@@ -244,7 +245,46 @@ answer(question) retrieves three chunks and sends two messages to mock_llm.chat:
 | Overlap 10 | [12/12] | [12/12] | [2/2] |
 | Overlap 0 | 12/12 | 10/12 | 2/2 |
 
-With zero overlap, two answerable questions fail. "What delivery time makes a completed order eligible for a full refund?" fails because the sentence is cut at a chunk boundary, so the retrieved chunk only holds the second half ("receives a full refund of the order amount") and not the expected fact "more than 45 minutes". "How soon is money returned when a payment fails but is deducted?" fails the same way: the chunk ends at "returned automatically" and "within 48 hours" falls into the next chunk. The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk, and with overlap 10 all 12 answers contain their facts.## Limitations and Next Steps
+With zero overlap, two answerable questions fail. "What delivery time makes a completed order eligible for a full refund?" fails because the sentence is cut at a chunk boundary, so the retrieved chunk only holds the second half ("receives a full refund of the order amount") and not the expected fact "more than 45 minutes". "How soon is money returned when a payment fails but is deducted?" fails the same way: the chunk ends at "returned automatically" and "within 48 hours" falls into the next chunk. The 10-word overlap repeats the end of each chunk at the start of the next one, so sentences cut by a boundary stay whole in at least one chunk, and with overlap 10 all 12 answers contain their facts.### Tools and tool map
+Five tools are described in TOOLS_SPEC (name, one-sentence description, JSON parameter specification) and mapped by name in TOOL_MAP: get_order (reads data/instamart.db), search_policy (uses the retrieve function from the RAG part), calculate_refund (a completed order delivered in more than 45 minutes gets 100% of the order amount, otherwise 0), issue_refund and escalate_to_human (each appends a line with a timestamp and the tool name to outputs/refund_ledger.jsonl). Refunds above INR 1000 are escalated to a human and not issued automatically. The model asks for a tool by name with an arguments dictionary, and the code looks the name up in TOOL_MAP.
+
+### ReAct loop
+run_agent starts with a system message containing AGENT and the user message. In each iteration it calls the model: a reply without tool calls is the final answer, otherwise the assistant tool-call message is appended, the tool is run, and a tool message with the JSON result is appended before the loop continues. Each of the seven runs is appended to outputs/agent_runs.jsonl with its scenario id, status, final answer, model calls, tokens and every step.
+
+### Seven scenarios
+| Scenario | Status | Refund (INR) | Model calls | Tokens used |
+|---|---|---|---|---|
+| S1 | REFUND | 128.25 | 5 | 1122 |
+| S2 | REFUND | 135.00 | 5 | 1122 |
+| S3 | ESCALATE | 1999.00 | 5 | 1109 |
+| S4 | DENIED | 0.00 | 4 | 785 |
+| S5 | DENIED | 0.00 | 3 | 472 |
+| S6 | NOT_FOUND | 0.00 | 2 | 162 |
+| S7 | FALLBACK_MAX_ITERATIONS | 0.00 | 6 | 3270 |
+
+Every refund amount equals expected_refund_inr within 0.01. S4 is an order delivered within 45 minutes, S5 a cancelled order, S6 an unknown order id, and S7 is the looping scenario, which uses all six model calls (3,270 tokens, under the default token limit of 6000) and ends with FALLBACK_MAX_ITERATIONS.
+
+### Stopping safely
+Three limits are enforced, and each fallback returns the steps completed so far and a short hand-off summary in final_answer: max_iterations (FALLBACK_MAX_ITERATIONS), token_limit (checked right after each model call, before the requested tool runs; FALLBACK_TOKEN_LIMIT) and time_limit_seconds (checked at the top of each iteration with time.monotonic(); FALLBACK_TIMEOUT).
+
+| Demonstration | Status |
+|---|---|
+| S1 with token_limit=200 | FALLBACK_TOKEN_LIMIT (stopped after 3 model calls) |
+| S1 with time_limit_seconds=0 | FALLBACK_TIMEOUT (0 model calls) |
+
+These two demo runs are saved in outputs/agent_demos.jsonl, separate from the seven scenario runs.
+
+### Crash and resume
+After every tool observation a checkpoint (run id, scenario id, full message list, tokens used, step number, tools executed) is written to state/. For S1, a simulated crash was raised right after the second tool execution (after its checkpoint was saved), and resume_agent then loaded the checkpoint and continued. Tools executed across the crash and the resume, in order:
+1. get_order
+2. search_policy
+3. calculate_refund
+4. issue_refund
+
+The final status was REFUND with INR 128.25, and no tool was run twice. outputs/refund_ledger.jsonl holds the issued and escalated actions (each line carries the run id).
+
+### ReAct versus plan-and-execute
+The ReAct agent calls the model after every tool result: S1 needed 5 calls (1,122 estimated tokens), S5 needed 3 (472) and S6 needed 2 (162). Tokens grow with every call because the whole message history is sent again; the looping S7 used 3,270 tokens in 6 calls. A plan-and-execute design asks the model once for the full list of steps and then runs them, so a normal refund like S1 would need about 2 model calls (one plan, one final answer) and fewer tokens; this is my estimate, not a measurement. Its weakness is that the plan is written before the order is seen. If the order is not found (S6) or is cancelled (S5), the remaining steps are pointless and the design needs an extra call to replan. ReAct reads each observation before choosing the next step, so S6 stopped after 2 calls and S5 never calculated a refund. For this refund workflow I would choose ReAct: it needs only 2 to 5 calls, every branch depends on data (status, delivery time, amount above INR 1000), and because money is involved it is safer to check each observation before the next action. Plan-and-execute would pay off in longer workflows with predictable steps.
 
 ## Limitations and Next Steps
 
